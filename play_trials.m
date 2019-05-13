@@ -1,17 +1,25 @@
-function play_trials(playback_speed,saveFlag)
+function play_trials(playback_speed,saveFlag,datadir)
 % playback_speed sets playback speed (default=1, real time)
 % saveFlag [0,1], if 1, movie is saved
 
 if ~exist('speed','var'), playback_speed = 1; end
 if ~exist('saveFlag','var'), saveFlag = 0; end
 
-% ask user for files
-[files,datadir] = uigetfile('*.mat','Select the INPUT DATA FILE(s)','MultiSelect','on');
-if ~iscell(files),
-    tmp = files;
-    clear files;
-    files{1} = tmp;
-    clear tmp;
+if ~exist(datadir,'dir'),
+    % ask user for files
+    [files,datadir] = uigetfile('*.mat','Select the INPUT DATA FILE(s)','MultiSelect','on');
+    if ~iscell(files),
+        tmp = files;
+        clear files;
+        files{1} = tmp;
+        clear tmp;
+    end
+else,
+    tmp = dir(fullfile(datadir,'Data*.mat'));
+    files = cell(1,length(tmp));
+    for n=1:length(tmp),
+        files{n} = tmp(n).name;
+    end
 end
 disp(datadir)
 disp(files{1})
@@ -58,9 +66,9 @@ hold on
 start = plot(0,0,'.','MarkerSize',target_sz,'color',target_col/255);
 target = plot(nan,nan,'.','MarkerSize',target_sz,'color',target_col/255);
 cursor = plot(nan,nan,'.','MarkerSize',cursor_sz,'color',cursor_col/255);
-INTvel = plot([-400,nan],[-400,nan],'-g');
 OPTvel = plot([-400,nan],[-400,nan],'-b');
 KFvel = plot([-400,nan],[-400,nan],'-r','linewidth',1.8);
+INTvel = plot([-400,nan],[-400,nan],'-g');
 txt = text(300,400,{'',''},...
     'horizontalalignment','left',...
     'verticalalignment','bottom',...
@@ -69,10 +77,10 @@ axis equal
 xlim([-500,+500])
 ylim([-500,+500])
 set(gca,'YDir','reverse')
-legend(gca,[INTvel,OPTvel,KFvel],...
-    {'Intended Vel', 'Optimal Vel', 'KF Vel'}, ...
+legend(gca,[OPTvel,KFvel,INTvel],...
+    {'Optimal Vel', 'KF Vel','Intended Vel'}, ...
     'location','southwest','fontsize',12)
-       
+
 % go through each file, load and play movie
 for n=1:length(files),
     load(fullfile(datadir,files{n})) %#ok<LOAD>
@@ -86,45 +94,59 @@ for n=1:length(files),
     for t=1:length(TrialData.Time),
         % trial stage
         time = TrialData.Time(t);
-        if time < TrialData.Events(2).Time, % ITI
-            ct = ct + 1;
-            Flag = 0;
-            start.Visible = 'off';
-            target.Visible = 'off';
-        else, % past ITI
-            if length(TrialData.Events)>2, % made it past start target
-                if time < TrialData.Events(3).Time, % START
-                    Flag = 1;
-                    start.Visible = 'on';
-                    target.Visible = 'off';
-                else, % REACH
-                    Flag = 2;
-                    start.Visible = 'off';
-                    target.Visible = 'on';
-                end
-            else, % error on start target
-                Flag = 1;
+        event_times = [TrialData.Events.Time];
+        event_idx = find(time > event_times,1,'last');
+        event_str = TrialData.Events(event_idx).Str;
+        ct = ct + 1;
+        switch event_str,
+            case 'Inter Trial Interval', % ITI
+                VelPlotFlag = 0;
+                start.Visible = 'off';
+                target.Visible = 'off';
+            case 'Start Target', % past ITI
+                VelPlotFlag = 1;
+                start.Visible = 'on';
+                target.Visible = 'off';
+            case 'Instructed Delay'
+                VelPlotFlag = 1;
+                start.Visible = 'on';
+                target.Visible = 'on';
+            case 'Reach Target',
+                VelPlotFlag = 1;
                 start.Visible = 'off';
                 target.Visible = 'on';
-            end
         end
         
         % plot cursor, target, pause
         cursor.XData = TrialData.CursorState(1,t);
         cursor.YData = TrialData.CursorState(2,t);
         
-        
         % plot KF vel, assist vel, C vel
-        if Flag>0,
+        if VelPlotFlag>0,
             % compute vel from eq. Y = C*X, ie. X = C\Y.
-            %int_state = TrialData.KalmanFilter{t-ct}.C(:,3:end)\TrialData.NeuralFeatures{t};
-        
-            KFvel.XData(2)  = (TrialData.CursorState(3,t)-400);
-            KFvel.YData(2)  = (TrialData.CursorState(4,t)-400);
-            OPTvel.XData(2) = (TrialData.IntendedCursorState(3,t)-400);
-            OPTvel.YData(2) = (TrialData.IntendedCursorState(4,t)-400);
-            %INTvel.XData(2) = (int_state(1)-400);
-            %INTvel.YData(2) = (int_state(2)-400);
+            int_state = TrialData.KalmanFilter{1}.C(:,3:end)\TrialData.NeuralFeatures{t};
+            
+            KFvel.Visible = 'on';
+            KFvel.XData(1)  = cursor.XData;
+            KFvel.YData(1)  = cursor.YData;
+            KFvel.XData(2)  = (TrialData.CursorState(3,t)+cursor.XData);
+            KFvel.YData(2)  = (TrialData.CursorState(4,t)+cursor.YData);
+            
+            OPTvel.Visible = 'on';
+            OPTvel.XData(1)  = cursor.XData;
+            OPTvel.YData(1)  = cursor.YData;
+            OPTvel.XData(2) = (TrialData.IntendedCursorState(3,t)+cursor.XData);
+            OPTvel.YData(2) = (TrialData.IntendedCursorState(4,t)+cursor.YData);
+            
+            INTvel.Visible = 'on';
+            INTvel.XData(1)  = cursor.XData;
+            INTvel.YData(1)  = cursor.YData;
+            INTvel.XData(2) = (int_state(1)+cursor.XData);
+            INTvel.YData(2) = (int_state(2)+cursor.YData);
+        else,
+            KFvel.Visible = 'off';
+            OPTvel.Visible = 'off';
+            INTvel.Visible = 'off';
         end
         
         % text
