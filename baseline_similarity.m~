@@ -1,0 +1,62 @@
+%% x vs y
+clear, clc, close all
+
+%% experiment info
+expts = [];
+
+expts(end+1).yymmdd = '20190507';
+expts(end).hhmmss = {'105331'};
+
+expts(end+1).yymmdd = '20190510';
+expts(end).hhmmss = {'104601','132311'};
+
+expts(end+1).yymmdd = '20190514';
+expts(end).hhmmss = {'111822','133050'};
+
+expts(end+1).yymmdd = '20190515';
+expts(end).hhmmss = {'105504'};
+
+%% load data
+ch_mean = [];
+ch_var = [];
+feature_mean = [];
+feature_var = [];
+for i=1:length(expts),
+    expt = expts(i);
+    yymmdd = expt.yymmdd;
+    for ii=1:length(expt.hhmmss),
+        hhmmss = expt.hhmmss{ii};
+        
+        % per block
+        time_to_targ_pb = cell(1,8);
+        success_pb = cell(1,8);
+        
+        % go through datafiles in fixed blocks
+        datadir = fullfile('/media/dsilver/data/Bravo1',yymmdd,...
+            'GangulyServer','Center-Out',yymmdd,hhmmss,'Imagined');
+        disp(datadir)
+        files = dir(fullfile(datadir,'Data*.mat'));
+
+        datadir = fullfile('/media/dsilver/data/Bravo1',yymmdd,...
+            'GangulyServer','Center-Out',yymmdd,hhmmss,'BCI_CLDA');
+        files = cat(1,files,dir(fullfile(datadir,'Data*.mat')));
+        for iii=1,
+            % load data
+            load(fullfile(files(iii).folder,files(iii).name));
+            try
+                ch_mean(end+1,:) = TrialData.ChStats.Mean;
+                ch_var(end+1,:) = TrialData.ChStats.Var;
+                feature_mean(end+1,:) = TrialData.FeatureStats.Mean;
+                feature_var(end+1,:) = TrialData.FeatureStats.Var;
+            catch
+                disp(datadir)
+            end
+        end
+    end
+end
+
+
+%% look at weights for each feature
+subplot(5,1,1)
+errorbar(1:128,ch_mean(1,:),ch_var(1,:),'none','capsize',0)
+

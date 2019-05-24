@@ -1,4 +1,4 @@
-%% classify targets
+%% cursor stalling
 clear, clc
 
 %% data info 
@@ -29,6 +29,7 @@ th = quintiles(2);
 worst_idx = Verr > th;
 
 % plot
+figure;
 histogram(Verr); hold on
 histogram(Verr(worst_idx));
 histogram(Verr(best_idx));
@@ -37,6 +38,40 @@ xlim([125,375])
 
 title('Distribution of Vel Err Over Bins')
 xlabel('Error in Velocity (px/bin)')
+
+% look at distribution of intended velocity angles
+figure('position',[200 584 714 340]);
+suptitle('Distribution of Intended Velocity Angles')
+cc = lines(3);
+
+subplot(1,3,1),
+polarhistogram(atan2d(Vopt(2,:),Vopt(1,:)),20,'facecolor',cc(1,:))
+title('All Time Bins')
+
+subplot(1,3,2),
+polarhistogram(atan2d(Vopt(2,worst_idx),Vopt(1,worst_idx)),20,'facecolor',cc(2,:))
+title('Worst Time Bins')
+
+subplot(1,3,3),
+polarhistogram(atan2d(Vopt(2,best_idx),Vopt(1,best_idx)),20,'facecolor',cc(3,:))
+title('Best Time Bins')
+
+% look at distribution of intended velocity angles
+figure('position',[200 584 714 340]);
+suptitle('Distribution of Decoded Velocity Angles')
+cc = lines(3);
+
+subplot(1,3,1),
+polarhistogram(atan2d(V(2,:),V(1,:)),20,'facecolor',cc(1,:))
+title('All Time Bins')
+
+subplot(1,3,2),
+polarhistogram(atan2d(V(2,worst_idx),V(1,worst_idx)),20,'facecolor',cc(2,:))
+title('Worst Time Bins')
+
+subplot(1,3,3),
+polarhistogram(atan2d(V(2,best_idx),V(1,best_idx)),20,'facecolor',cc(3,:))
+title('Best Time Bins')
 
 %% look @ avg high gamma during worst, best, and difference
 HG = [];
@@ -192,3 +227,49 @@ for d=1:length(days),
     end
 
 end % days
+
+
+%% build a classifier
+V = [];
+Vopt = [];
+for n=1:N,
+    TrialData = load(fullfile(datadir,files(n).name),...
+        'CursorState','IntendedCursorState');
+    V       = cat(2,V,   TrialData.CursorState(3:4,:));
+    Vopt    = cat(2,Vopt,TrialData.IntendedCursorState(3:4,:));
+end
+
+% get distribution of kalman vel error
+Verr = sqrt( (V(1,:) - Vopt(1,:)).^2 + (V(2,:) - Vopt(2,:)).^2 );
+
+% split into quintiles
+quintiles = prctile(Verr,[20,80]);
+
+th = quintiles(1);
+best_idx = Verr < th;
+
+th = quintiles(2);
+worst_idx = Verr > th;
+
+FeatureList = {'DeltaPhase','DeltaPower','ThetaPower','AlphaPower',...
+    'BetaPower','LowGammaPower','HighGammaPower'};
+for i=1:length(FeatureList),
+    FeatureStr = FeatureList{i};
+    
+    % grab feature
+    feature = [];
+    for n=1:N,
+        TrialData = load(fullfile(datadir,files(n).name),...
+            FeatureStr);
+        feature = cat(2,feature,   TrialData.(FeatureStr));
+    end
+
+    % parse based on Verr
+    best_feature  = feature(:,best_idx);
+    worst_feature = feature(:,worst_idx);
+    diff_feature = mean(best_feature,2) - mean(worst_feature,2);
+
+    % build matrices for classifier
+    
+
+end

@@ -19,7 +19,7 @@ target_col = TrialData.Params.OutTargetColor;
 target_rad = TrialData.Params.ReachTargetRadius;
 % cc = brewermap(8,'Paired');
 cc = hsv(8);
-cc = cc([1,3,5,7,2,4,6,8],:);
+% cc
 
 % set up figure
 figure('units','normalized','position',[.1,.1,.6,.8]);
