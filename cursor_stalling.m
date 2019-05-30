@@ -230,6 +230,11 @@ end % days
 
 
 %% build a classifier
+
+datadir = '/Volumes/data/Bravo1/DownsizedTrials';
+files = dir(fullfile(datadir,'*BCI_Fixed*.mat')); % fixed blocks
+N = length(files);
+
 V = [];
 Vopt = [];
 for n=1:N,
@@ -253,6 +258,7 @@ worst_idx = Verr > th;
 
 FeatureList = {'DeltaPhase','DeltaPower','ThetaPower','AlphaPower',...
     'BetaPower','LowGammaPower','HighGammaPower'};
+X = []; % features
 for i=1:length(FeatureList),
     FeatureStr = FeatureList{i};
     
@@ -265,11 +271,104 @@ for i=1:length(FeatureList),
     end
 
     % parse based on Verr
-    best_feature  = feature(:,best_idx);
-    worst_feature = feature(:,worst_idx);
-    diff_feature = mean(best_feature,2) - mean(worst_feature,2);
+    best_feature  = feature(:,best_idx)';
+    worst_feature = feature(:,worst_idx)';
+    both_feature = cat(1,best_feature,worst_feature);
 
-    % build matrices for classifier
-    
+    % build matrix for classifier
+    X = cat(2,X,both_feature);
 
 end
+
+% build label matrix for classifier
+Y = ones(size(X,1),1);
+Y(1:size(best_feature,1),1) = -1;
+
+% build classifers
+lin_mdl = compact(fitcdiscr(X,Y,...
+    'DiscrimType','linear',...
+    'Prior','uniform'));
+
+
+Yhat = predict(lin_mdl,X);
+accuracy = mean(Y==Yhat);
+fprintf('    LDA Accuracy: %.2f\n',accuracy)
+
+%% build a classifier per day
+
+days = {'20190403','20190417','20190426','20190429','20190501'};
+FeatureList = {'DeltaPhase','DeltaPower','ThetaPower','AlphaPower',...
+    'BetaPower','LowGammaPower','HighGammaPower'};
+for d=1:length(days),
+    day = days{d};
+    
+    % data info
+    datadir = '/Volumes/data/Bravo1/DownsizedTrials';
+    files = dir(fullfile(datadir,sprintf('%s*BCI_Fixed*.mat',day))); % fixed blocks
+    N = length(files);
+    
+    V = [];
+    Vopt = [];
+    for n=1:N,
+        TrialData = load(fullfile(datadir,files(n).name),...
+            'CursorState','IntendedCursorState');
+        V       = cat(2,V,   TrialData.CursorState(3:4,:));
+        Vopt    = cat(2,Vopt,TrialData.IntendedCursorState(3:4,:));
+    end
+    
+    % get distribution of kalman vel error
+    Verr = sqrt( (V(1,:) - Vopt(1,:)).^2 + (V(2,:) - Vopt(2,:)).^2 );
+    
+    % split into quintiles
+    quintiles = prctile(Verr,[20,80]);
+    
+    th = quintiles(1);
+    best_idx = Verr < th;
+    
+    th = quintiles(2);
+    worst_idx = Verr > th;
+    
+    X = []; % features
+    for i=1:length(FeatureList),
+        FeatureStr = FeatureList{i};
+        
+        % grab feature
+        feature = [];
+        for n=1:N,
+            TrialData = load(fullfile(datadir,files(n).name),...
+                FeatureStr);
+            feature = cat(2,feature,   TrialData.(FeatureStr));
+        end
+        
+        % parse based on Verr
+        best_feature  = feature(:,best_idx)';
+        worst_feature = feature(:,worst_idx)';
+        both_feature = cat(1,best_feature,worst_feature);
+        
+        % build matrix for classifier
+        X = cat(2,X,both_feature);
+        
+    end
+    
+    % build label matrix for classifier
+    Y = ones(size(X,1),1);
+    Y(1:size(best_feature,1),1) = -1;
+    
+    % build classifers
+    lin_mdl = compact(fitcdiscr(X,Y,...
+        'DiscrimType','linear',...
+        'Prior','uniform',...
+        'OptimizeHyperparameters','auto',...
+        'HyperparameterOptimizationOptions',...
+        struct('KFold',10,'ShowPlots',false,'Verbose',0,'Repartition',true)));
+    
+    Yhat = predict(lin_mdl,X);
+    accuracy = mean(Y==Yhat);
+    
+    % output to screen
+    fprintf('%s',day)
+    fprintf('    LDA Accuracy: %.2f\n',accuracy)
+
+end % days
+
+
