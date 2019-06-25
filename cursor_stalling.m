@@ -160,13 +160,14 @@ for i=1:length(FeatureList),
 end
 
 %% full analysis for individual days
-days = {'20190403','20190417','20190426','20190429','20190501'};
+days = {'20190403','20190417','20190426','20190429','20190501','20190507',...
+    '20190510','20190514','20190515','20190521','20190529'};
 FeatureList = {'DeltaPhase','DeltaPower','ThetaPower','AlphaPower',...
     'BetaPower','LowGammaPower','HighGammaPower'};
 load('imaging/BRAVO1_lh_pial.mat');
 lh = cortex;
 load('imaging/elecs_all.mat');
-for d=1:length(days),
+for d=11:length(days),
     day = days{d};
     
     % data info
@@ -213,7 +214,7 @@ for d=1:length(days),
         diff_feature = mean(best_feature,2) - mean(worst_feature,2);
         
         % plot difference in means (best-worst) on the brain
-        figure;
+        figure('Visible','off');
         ctmr_gauss_plot(lh, elecmatrix,diff_feature,'lh'); hold on
         colorbar;
         title(sprintf('%s (best - worst)',FeatureStr))
@@ -231,7 +232,7 @@ end % days
 
 %% build a classifier
 
-datadir = '/Volumes/data/Bravo1/DownsizedTrials';
+datadir = '/media/dsilver/data/Bravo1/DownsizedTrials';
 files = dir(fullfile(datadir,'*BCI_Fixed*.mat')); % fixed blocks
 N = length(files);
 
@@ -273,7 +274,7 @@ for i=1:length(FeatureList),
     % parse based on Verr
     best_feature  = feature(:,best_idx)';
     worst_feature = feature(:,worst_idx)';
-    both_feature = cat(1,best_feature,worst_feature);
+    both_feature = cat(1,worst_feature,best_feature);
 
     % build matrix for classifier
     X = cat(2,X,both_feature);
@@ -281,29 +282,41 @@ for i=1:length(FeatureList),
 end
 
 % build label matrix for classifier
-Y = ones(size(X,1),1);
-Y(1:size(best_feature,1),1) = -1;
+Y(1:size(best_feature,1),1) = 0;
+Y(size(best_feature,1)+1:size(both_feature,1),1) = 1;
 
 % build classifers
 lin_mdl = compact(fitcdiscr(X,Y,...
     'DiscrimType','linear',...
-    'Prior','uniform'));
+    'Prior','uniform',...
+    'OptimizeHyperparameters','none',...
+    'HyperparameterOptimizationOptions',...
+    struct('AcquisitionFunctionName','expected-improvement-plus',...
+    'KFold',10,'ShowPlots',false,'Verbose',0,'Repartition',true)));
 
 
 Yhat = predict(lin_mdl,X);
 accuracy = mean(Y==Yhat);
 fprintf('    LDA Accuracy: %.2f\n',accuracy)
 
+% plot confusion matrix
+plotconfusion(Y',Yhat')
+set(gca,'XTickLabel',{'worst','best',''})
+set(gca,'YTickLabel',{'worst','best',''},'YTickLabelRotation',90)
+xlabel('True Class','fontsize',14)
+ylabel('Predicted Class','fontsize',14)
+
 %% build a classifier per day
 
-days = {'20190403','20190417','20190426','20190429','20190501'};
+days = {'20190403','20190417','20190426','20190429','20190501','20190507',...
+    '20190510','20190514','20190515','20190521','20190529'};
 FeatureList = {'DeltaPhase','DeltaPower','ThetaPower','AlphaPower',...
     'BetaPower','LowGammaPower','HighGammaPower'};
 for d=1:length(days),
     day = days{d};
     
     % data info
-    datadir = '/Volumes/data/Bravo1/DownsizedTrials';
+    datadir = '/media/dsilver/data/Bravo1/DownsizedTrials';
     files = dir(fullfile(datadir,sprintf('%s*BCI_Fixed*.mat',day))); % fixed blocks
     N = length(files);
     
@@ -351,8 +364,9 @@ for d=1:length(days),
     end
     
     % build label matrix for classifier
-    Y = ones(size(X,1),1);
-    Y(1:size(best_feature,1),1) = -1;
+    Y = [];
+    Y(1:size(best_feature,1),1) = 0;
+    Y(size(best_feature,1)+1:size(both_feature,1),1) = 1;
     
     % build classifers
     lin_mdl = compact(fitcdiscr(X,Y,...
@@ -368,7 +382,19 @@ for d=1:length(days),
     % output to screen
     fprintf('%s',day)
     fprintf('    LDA Accuracy: %.2f\n',accuracy)
-
+    
+    % plot confusion matrix
+    figure;
+    plotconfusion(Y',Yhat')
+    set(gca,'XTickLabel',{'worst','best',''})
+    set(gca,'YTickLabel',{'worst','best',''},'YTickLabelRotation',90)
+    xlabel('True Class','fontsize',14)
+    ylabel('Predicted Class','fontsize',14)
+    savefile = sprintf(...
+        '~/Desktop/Bravo1_Attention/%s_LDA_ConfusionMat.png',...
+        day);
+    saveas(gcf,savefile,'png');
+    close(gcf)
 end % days
 
 

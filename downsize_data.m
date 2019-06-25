@@ -17,23 +17,39 @@ expts = [];
 
 expts(end+1).yyyymmdd = '20190403';
 expts(end).hhmmss = {'105510',      '111944'};
-expts(end).brocks = {'105455-001',  '105455-002'};
 
 expts(end+1).yyyymmdd = '20190417';
 expts(end).hhmmss = {'105410',      '110418',       '112437',       '113706',       '134447',   '135345'};
-expts(end).brocks = {'105357-001',  '105357-002',   '105357-003',   '105357-004', '134435-001', '134435-002'};
 
 expts(end+1).yyyymmdd = '20190426';
 expts(end).hhmmss = {'111618',      '115111'};
-expts(end).brocks = {'111533-001',  '111533-002'};
 
 expts(end+1).yyyymmdd = '20190429';
 expts(end).hhmmss = {'130907',      '134613',       '135428',       '140100'};
-expts(end).brocks = {'130848-001',  '130848-002',   '130848-003',   '130848-004'};
 
 expts(end+1).yyyymmdd = '20190501';
 expts(end).hhmmss = {'133420',      '133745',       '135512'};
-expts(end).brocks = {'133403-001',  '133403-002',   '133403-003'};
+
+expts(end+1).yyyymmdd = '20190507';
+expts(end).hhmmss = {'105331',      '111526',       '111526',       '113944'};
+
+expts(end+1).yyyymmdd = '20190510';
+expts(end).hhmmss = {'140749',      '141900'};
+
+expts(end+1).yyyymmdd = '20190514';
+expts(end).hhmmss = {'133050',      '135927',       '140808',       '141731'};
+
+expts(end+1).yyyymmdd = '20190515';
+expts(end).hhmmss = {'110735',      '112302',       '113447'};
+
+expts(end+1).yyyymmdd = '20190521';
+expts(end).hhmmss = {'135008',      '135943',       '141438'};
+
+expts(end+1).yyyymmdd = '20190524';
+expts(end).hhmmss = {'110219',      '111731',       '112353',       '133313',       '134653',       '135957'};
+
+expts(end+1).yyyymmdd = '20190529';
+expts(end).hhmmss = {'105609',      '111528',       '113247',       '114050'        '132457',       '133450',       '135030',       '135644'};
 
 
 % 1. go through expts
@@ -44,12 +60,7 @@ for i=1:length(expts), % date
     
     for ii=1:length(expt.hhmmss), % session within date
         hhmmss  = expt.hhmmss{ii};
-        brock   = expt.brocks{ii};
-        fprintf('  %s / %s\n',hhmmss,brock)
-        
-        % % load blackrock, parse into trials
-        % [anin,lfp,Fs] = load_blackrock(basedir,yyyymmdd,brock);
-        % trials = parse_blackrock(anin,Fs);
+        fprintf('  %s \n',hhmmss)
         
         % 3. go through each folder
         expt_dir = fullfile(basedir,yyyymmdd,...
@@ -63,9 +74,6 @@ for i=1:length(expts), % date
         files = cat(1,files,dir(fullfile(imag_dir,'Data*.mat')));
         files = cat(1,files,dir(fullfile(clda_dir,'Data*.mat')));
         files = cat(1,files,dir(fullfile(fixed_dir,'Data*.mat')));
-        
-        % assert(length(files)==length(trials),...
-        %     'matlab trials do not match blackrock trials')
         
         for iii=1:length(files),
             % parse filename to get trial info
@@ -83,6 +91,11 @@ for i=1:length(expts), % date
             
             % 3. load each trial - get idx for reaching to target
             f = load(fullfile(files(iii).folder,files(iii).name));
+            
+            % make sure there is a reach period, otherwise skip
+            if ~strcmp(f.TrialData.Events(end).Str,'Reach Target'),
+                continue;
+            end
             
             % 4. track necessary vars (interp to 10hz if necessary)
             TrialData.TargetAngle = f.TrialData.TargetAngle;

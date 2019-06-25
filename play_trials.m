@@ -5,7 +5,7 @@ function play_trials(playback_speed,saveFlag,datadir)
 if ~exist('speed','var'), playback_speed = 1; end
 if ~exist('saveFlag','var'), saveFlag = 0; end
 
-if ~exist('datadir','dir'),
+if ~exist(datadir,'dir'),
     % ask user for files
     [files,datadir] = uigetfile('*.mat','Select the INPUT DATA FILE(s)','MultiSelect','on');
     if ~iscell(files),
@@ -45,7 +45,7 @@ if saveFlag,
     else,
         vidObj = VideoWriter(sprintf('%s.avi',savefile));
     end
-    vidObj.FrameRate = playback_speed/.1;
+    vidObj.FrameRate = playback_speed/.2;
     vidObj.Quality = 100;
     open(vidObj);
 end
@@ -57,6 +57,7 @@ cursor_sz = 4*TrialData.Params.CursorSize;
 cursor_col = TrialData.Params.CursorColor;
 target_sz = 4*TrialData.Params.TargetSize;
 target_col = TrialData.Params.OutTargetColor;
+G = TrialData.Params.Gain;
 
 % set up figure
 fig = figure('units','normalized','position',[.1,.1,.8,.8]);
@@ -76,7 +77,7 @@ txt = text(300,400,{'',''},...
 axis equal
 xlim([-500,+500])
 ylim([-500,+500])
-set(gca,'YDir','reverse')
+set(gca,'YDir','reverse','XTick',[],'YTick',[],'box','on')
 legend(gca,[OPTvel,KFvel,INTvel],...
     {'Optimal Vel', 'KF Vel','Intended Vel'}, ...
     'location','southwest','fontsize',12)
@@ -123,14 +124,12 @@ for n=1:length(files),
         
         % plot KF vel, assist vel, C vel
         if VelPlotFlag>0,
-            % compute vel from eq. Y = C*X, ie. X = C\Y.
-            int_state = TrialData.KalmanFilter{1}.C(:,3:end)\TrialData.NeuralFeatures{t};
             
             KFvel.Visible = 'on';
             KFvel.XData(1)  = cursor.XData;
             KFvel.YData(1)  = cursor.YData;
-            KFvel.XData(2)  = (TrialData.CursorState(3,t)+cursor.XData);
-            KFvel.YData(2)  = (TrialData.CursorState(4,t)+cursor.YData);
+            KFvel.XData(2)  = (G*TrialData.CursorState(3,t)+cursor.XData);
+            KFvel.YData(2)  = (G*TrialData.CursorState(4,t)+cursor.YData);
             
             OPTvel.Visible = 'on';
             OPTvel.XData(1)  = cursor.XData;
@@ -138,6 +137,8 @@ for n=1:length(files),
             OPTvel.XData(2) = (TrialData.IntendedCursorState(3,t)+cursor.XData);
             OPTvel.YData(2) = (TrialData.IntendedCursorState(4,t)+cursor.YData);
             
+            % compute vel from eq. Y = C*X, ie. X = C\Y.
+            int_state = TrialData.KalmanFilter{1}.C(:,3:end)\TrialData.NeuralFeatures{t};
             INTvel.Visible = 'on';
             INTvel.XData(1)  = cursor.XData;
             INTvel.YData(1)  = cursor.YData;

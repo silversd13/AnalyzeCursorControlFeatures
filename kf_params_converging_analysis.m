@@ -10,11 +10,12 @@ alpha = [];
 lambda = [];
 TargetID = [];
 TargetIDstr = {};
-for i=1:length(datafiles),
+T = length(datafiles);
+for i=1:T,
     % load data, grab neural features
     disp(datafiles(i).name)
     load(fullfile(datadir,datafiles(i).name)) 
-    for ii=1:length(TrialData.KalmanFilter),
+    for ii=1,
         Ccell{end+1} = TrialData.KalmanFilter{ii}.C;
         Pcell{end+1} = TrialData.KalmanFilter{ii}.P;
     end
@@ -138,19 +139,19 @@ title('Target Colormap')
 
 % X velocity weights
 subplot(4,3,5:6)
-violin(diff(squeeze(C(:,3,:)),1,2),'facecolor',cc(TargetID(1:63),:),'facealpha',.4,'mc',[],'medc',[]);
+violin(diff(squeeze(C(:,3,:)),1,2),'facecolor',cc(TargetID(1:T-1),:),'facealpha',.4,'mc',[],'medc',[]);
 xlim([0,length(datafiles)+1])
 ylabel('KF.C (xvel)')
 
 % Y velocity weights
 subplot(4,3,8:9)
-violin(diff(squeeze(C(:,4,:)),1,2),'facecolor',cc(TargetID(1:63),:),'facealpha',.4,'mc',[],'medc',[]);
+violin(diff(squeeze(C(:,4,:)),1,2),'facecolor',cc(TargetID(1:T-1),:),'facealpha',.4,'mc',[],'medc',[]);
 xlim([0,length(datafiles)+1])
 ylabel('KF.C (yvel)')
 
 % constant weights
 subplot(4,3,11:12)
-violin(diff(squeeze(C(:,5,:)),1,2),'facecolor',cc(TargetID(1:63),:),'facealpha',.4,'mc',[],'medc',[]);
+violin(diff(squeeze(C(:,5,:)),1,2),'facecolor',cc(TargetID(1:T-1),:),'facealpha',.4,'mc',[],'medc',[]);
 xlim([0,length(datafiles)+1])
 ylabel('KF.C (const)')
 xlabel('trials')
@@ -206,21 +207,21 @@ title('Target Colormap')
 
 % X velocity weights
 subplot(4,3,5:6)
-violin((diff(squeeze(C(:,3,:)),1,2)./squeeze(C(:,3,1:end-1))),'facecolor',cc(TargetID(1:63),:),'facealpha',.4,'mc',[],'medc',[]);
+violin((diff(squeeze(C(:,3,:)),1,2)./squeeze(C(:,3,1:end-1))),'facecolor',cc(TargetID(1:T-1),:),'facealpha',.4,'mc',[],'medc',[]);
 xlim([0,length(datafiles)+1])
 ylabel('KF.C (xvel)')
 ylim([-10,10])
 
 % Y velocity weights
 subplot(4,3,8:9)
-violin((diff(squeeze(C(:,4,:)),1,2)./squeeze(C(:,4,1:end-1))),'facecolor',cc(TargetID(1:63),:),'facealpha',.4,'mc',[],'medc',[]);
+violin((diff(squeeze(C(:,4,:)),1,2)./squeeze(C(:,4,1:end-1))),'facecolor',cc(TargetID(1:T-1),:),'facealpha',.4,'mc',[],'medc',[]);
 xlim([0,length(datafiles)+1])
 ylabel('KF.C (yvel)')
 ylim([-10,10])
 
 % constant weights
 subplot(4,3,11:12)
-violin((diff(squeeze(C(:,5,:)),1,2)./squeeze(C(:,5,1:end-1))),'facecolor',cc(TargetID(1:63),:),'facealpha',.4,'mc',[],'medc',[]);
+violin((diff(squeeze(C(:,5,:)),1,2)./squeeze(C(:,5,1:end-1))),'facecolor',cc(TargetID(1:T-1),:),'facealpha',.4,'mc',[],'medc',[]);
 xlim([0,length(datafiles)+1])
 ylabel('KF.C (const)')
 xlabel('trials')
